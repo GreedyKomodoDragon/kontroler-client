@@ -1,6 +1,6 @@
 # Kontroler Go Client Library
 
-This repository contains the Go client library for interacting with Kontroler, a powerful REST API for managing and automating your workflows.
+This repository contains the Go client library for interacting with Kontroler, a REST API for managing and automating your workflows.
 
 ## Installation
 
