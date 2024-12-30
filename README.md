@@ -37,14 +37,6 @@ func main() {
 	}
 
     client, _ := kontroler.NewClient(config)
-
-    // Example: Fetch a resource
-    resource, err := client.GetResource("resource-id")
-    if err != nil {
-        log.Fatalf("Error fetching resource: %v", err)
-    }
-
-    fmt.Printf("Fetched resource: %+v\n", resource)
 }
 ```
 
