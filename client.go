@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"time"
@@ -13,7 +14,11 @@ var contentTypeJSON = mime.TypeByExtension(".json")
 
 type Client interface {
 	CreateDag(Dag) error
-	CreateDagRun(DagRun) error
+	CreateDagRun(dagRun DagRun) (*CreateDagRunResult, error)
+}
+
+type CreateDagRunResult struct {
+	RunId int `json:"runId"`
 }
 
 type client struct {
@@ -108,21 +113,31 @@ func (c *client) CreateDag(dag Dag) error {
 	return nil
 }
 
-func (c *client) CreateDagRun(dagRun DagRun) error {
+func (c *client) CreateDagRun(dagRun DagRun) (*CreateDagRunResult, error) {
 	jsonData, err := json.Marshal(dagRun)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := c.httpClient.Post(fmt.Sprintf("%s/api/v1/dag/run/create", c.url), contentTypeJSON, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("failed to create DAG RUN, status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to create DAG RUN, status code: %d", resp.StatusCode)
 	}
 
-	return nil
+	var result CreateDagRunResult
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
