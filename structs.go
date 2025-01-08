@@ -11,12 +11,18 @@ type DagParameterSpec struct {
 	Value    string `json:"value"`
 }
 
+type Webhook struct {
+	URL       string `json:"url"`
+	VerifySSL bool   `json:"verifySSL"`
+}
+
 type Dag struct {
 	Name       string             `json:"name"`
 	Schedule   string             `json:"schedule,omitempty"`
 	Tasks      []TaskSpec         `json:"tasks"`
 	Parameters []DagParameterSpec `json:"parameters,omitempty"`
 	Namespace  string             `json:"namespace"`
+	Webhook    Webhook            `json:"webhook"`
 }
 
 func (d *Dag) Validate() error {
