@@ -25,6 +25,8 @@ type client struct {
 	url            string
 	httpClient     *http.Client
 	authCookieName string
+	username       string
+	password       string
 }
 
 type ClientConfig struct {
@@ -45,6 +47,8 @@ func NewClient(config *ClientConfig) (Client, error) {
 		url:            config.Url,
 		httpClient:     httpClient,
 		authCookieName: config.AuthCookieName,
+		username:       config.Username,
+		password:       config.Password,
 	}
 
 	if err := client.login(config.Username, config.Password); err != nil {
@@ -85,6 +89,7 @@ func (c *client) login(username, password string) error {
 	c.httpClient.Transport = &cookieTransport{
 		cookie:    authCookie,
 		transport: http.DefaultTransport,
+		client:    c,
 	}
 
 	return nil
