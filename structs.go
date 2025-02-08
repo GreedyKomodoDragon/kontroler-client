@@ -3,6 +3,9 @@ package kontrolerclient
 import (
 	"fmt"
 	"regexp"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type DagParameterSpec struct {
@@ -16,6 +19,19 @@ type Webhook struct {
 	VerifySSL bool   `json:"verifySSL"`
 }
 
+type PVC struct {
+	AccessModes      []corev1.PersistentVolumeAccessMode `json:"accessModes"`
+	Selector         *metav1.LabelSelector               `json:"selector,omitempty"`
+	Resources        corev1.ResourceRequirements         `json:"resources,omitempty"`
+	StorageClassName *string                             `json:"storageClassName,omitempty"`
+	VolumeMode       *corev1.PersistentVolumeMode        `json:"volumeMode,omitempty"`
+}
+
+type Workspace struct {
+	Enabled bool `json:"enable"`
+	PvcSpec PVC  `json:"pvc"`
+}
+
 type Dag struct {
 	Name       string             `json:"name"`
 	Schedule   string             `json:"schedule,omitempty"`
@@ -23,6 +39,7 @@ type Dag struct {
 	Parameters []DagParameterSpec `json:"parameters,omitempty"`
 	Namespace  string             `json:"namespace"`
 	Webhook    Webhook            `json:"webhook"`
+	Workspace  *Workspace         `json:"workspace,omitempty"`
 }
 
 func (d *Dag) Validate() error {
