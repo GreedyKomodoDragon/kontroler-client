@@ -26,7 +26,7 @@ func (e *HTTPError) Error() string {
 type Client interface {
 	CreateDag(ctx context.Context, dag Dag) error
 	CreateDagRun(ctx context.Context, dagRun DagRun) (*CreateDagRunResult, error)
-	GetTaskDetails(ctx context.Context, runId int, taskId string) (*TaskRunDetails, error)
+	GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRunDetails, error)
 	GetDagRun(ctx context.Context, runId int) (*DagRunAll, error)
 }
 
@@ -182,8 +182,8 @@ func (c *client) CreateDagRun(ctx context.Context, dagRun DagRun) (*CreateDagRun
 	return &result, nil
 }
 
-func (c *client) GetTaskDetails(ctx context.Context, runId int, taskId string) (*TaskRunDetails, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/run/task/%d/%s", c.url, runId, taskId), nil)
+func (c *client) GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRunDetails, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/run/task/%d/%d", c.url, runId, taskId), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
