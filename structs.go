@@ -82,3 +82,33 @@ type DagRun struct {
 	Parameters map[string]string `json:"parameters"`
 	Namespace  string            `json:"namespace"`
 }
+
+type TaskRunDetails struct {
+	Id       int        `json:"id"`
+	Status   string     `json:"status"`
+	Attempts int        `json:"attempts"`
+	Pods     []*TaskPod `json:"pods"`
+}
+
+type TaskPod struct {
+	PodUID   string `json:"podUID"`
+	ExitCode *int   `json:"exitCode"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Duration *int64 `json:"duration"`
+}
+
+type DagRunAll struct {
+	Id              int              `json:"id"`
+	DagId           int              `json:"dagId"`
+	Status          string           `json:"status"`
+	SuccessfulCount int              `json:"successfulCount"`
+	FailedCount     int              `json:"failedCount"`
+	Connections     map[int][]int    `json:"connections"`
+	TaskInfo        map[int]TaskInfo `json:"taskInfo"`
+}
+
+type TaskInfo struct {
+	Status string `json:"status"`
+	Name   string `json:"name"`
+}
