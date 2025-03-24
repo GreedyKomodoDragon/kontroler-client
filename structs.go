@@ -76,7 +76,7 @@ type TaskRef struct {
 	Version int    `json:"version"`
 }
 
-type DagRun struct {
+type DagRunCreate struct {
 	Name       string            `json:"name"`
 	RunName    string            `json:"runName"`
 	Parameters map[string]string `json:"parameters"`
@@ -111,4 +111,9 @@ type DagRunAll struct {
 type TaskInfo struct {
 	Status string `json:"status"`
 	Name   string `json:"name"`
+}
+
+type DagRun struct {
+	Connections map[int][]int    `json:"connections"`
+	TaskInfo    map[int]TaskInfo `json:"taskInfo"`
 }

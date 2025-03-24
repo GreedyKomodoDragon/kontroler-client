@@ -25,9 +25,10 @@ func (e *HTTPError) Error() string {
 
 type Client interface {
 	CreateDag(ctx context.Context, dag Dag) error
-	CreateDagRun(ctx context.Context, dagRun DagRun) (*CreateDagRunResult, error)
+	CreateDagRun(ctx context.Context, dagRun DagRunCreate) (*CreateDagRunResult, error)
 	GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRunDetails, error)
 	GetDagRun(ctx context.Context, runId int) (*DagRunAll, error)
+	GetDagRunDetails(ctx context.Context, runId int) (*DagRun, error)
 }
 
 type CreateDagRunResult struct {
@@ -157,7 +158,7 @@ func (c *client) CreateDag(ctx context.Context, dag Dag) error {
 	return handleResponse(resp, nil)
 }
 
-func (c *client) CreateDagRun(ctx context.Context, dagRun DagRun) (*CreateDagRunResult, error) {
+func (c *client) CreateDagRun(ctx context.Context, dagRun DagRunCreate) (*CreateDagRunResult, error) {
 	jsonData, err := json.Marshal(dagRun)
 	if err != nil {
 		return nil, fmt.Errorf("marshaling dag run: %w", err)
@@ -213,6 +214,25 @@ func (c *client) GetDagRun(ctx context.Context, runId int) (*DagRunAll, error) {
 	}
 
 	var result DagRunAll
+	if err := handleResponse(resp, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func (c *client) GetDagRunDetails(ctx context.Context, runId int) (*DagRun, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/dag/run/%d", c.url, runId), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+
+	var result DagRun
 	if err := handleResponse(resp, &result); err != nil {
 		return nil, err
 	}
