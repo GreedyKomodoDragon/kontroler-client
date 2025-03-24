@@ -8,7 +8,10 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var contentTypeJSON = mime.TypeByExtension(".json")
@@ -29,6 +32,7 @@ type Client interface {
 	GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRunDetails, error)
 	GetDagRun(ctx context.Context, runId int) (*DagRunAll, error)
 	GetDagRunDetails(ctx context.Context, runId int) (*DagRun, error)
+	StreamPodLogs(ctx context.Context, podUID string, logChan chan<- string, errChan chan<- error) error
 }
 
 type CreateDagRunResult struct {
@@ -238,4 +242,50 @@ func (c *client) GetDagRunDetails(ctx context.Context, runId int) (*DagRun, erro
 	}
 
 	return &result, nil
+}
+
+func (c *client) StreamPodLogs(ctx context.Context, podUID string, logChan chan<- string, errChan chan<- error) error {
+	u, err := url.Parse(c.url)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+
+	// Convert scheme from http(s) to ws(s)
+	switch u.Scheme {
+	case "http":
+		u.Scheme = "ws"
+	case "https":
+		u.Scheme = "wss"
+	}
+
+	u.Path = "/ws/logs"
+	u.RawQuery = url.Values{"pod": []string{podUID}}.Encode()
+
+	// Create WebSocket connection
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, u.String(), nil)
+	if err != nil {
+		return fmt.Errorf("connecting to websocket: %w", err)
+	}
+
+	// Start reading messages in a goroutine
+	go func() {
+		defer conn.Close()
+		defer close(logChan)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				_, message, err := conn.ReadMessage()
+				if err != nil {
+					errChan <- fmt.Errorf("reading websocket message: %w", err)
+					return
+				}
+				logChan <- string(message)
+			}
+		}
+	}()
+
+	return nil
 }
