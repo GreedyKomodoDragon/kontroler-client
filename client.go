@@ -183,7 +183,7 @@ func (c *client) CreateDagRun(ctx context.Context, dagRun DagRun) (*CreateDagRun
 }
 
 func (c *client) GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRunDetails, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/run/task/%d/%d", c.url, runId, taskId), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/dag/run/task/%d/%d", c.url, runId, taskId), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -202,7 +202,7 @@ func (c *client) GetTaskDetails(ctx context.Context, runId, taskId int) (*TaskRu
 }
 
 func (c *client) GetDagRun(ctx context.Context, runId int) (*DagRunAll, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/run/all/%d", c.url, runId), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/dag/run/all/%d", c.url, runId), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
