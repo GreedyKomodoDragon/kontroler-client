@@ -261,8 +261,20 @@ func (c *client) StreamPodLogs(ctx context.Context, podUID string, logChan chan<
 	u.Path = "/ws/logs"
 	u.RawQuery = url.Values{"pod": []string{podUID}}.Encode()
 
-	// Create WebSocket connection
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, u.String(), nil)
+	// Get auth cookie from transport
+	header := http.Header{}
+	if transport, ok := c.httpClient.Transport.(*cookieTransport); ok && transport.cookie != nil {
+		header.Add("Cookie", transport.cookie.String())
+	} else {
+		return fmt.Errorf("no authentication cookie found")
+	}
+
+	// Use custom dialer with headers
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 45 * time.Second,
+	}
+
+	conn, _, err := dialer.DialContext(ctx, u.String(), header)
 	if err != nil {
 		return fmt.Errorf("connecting to websocket: %w", err)
 	}
