@@ -9,6 +9,8 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -33,6 +35,8 @@ type Client interface {
 	GetDagRun(ctx context.Context, runId int) (*DagRunAll, error)
 	GetDagRunDetails(ctx context.Context, runId int) (*DagRun, error)
 	StreamPodLogs(ctx context.Context, podUID string, logChan chan<- string, errChan chan<- error) error
+	GetRawLogs(ctx context.Context, runId int, podName string, byteRange *string) (io.ReadCloser, int64, error)
+	StreamRawLogs(ctx context.Context, runId int, podName string) (<-chan string, <-chan error)
 }
 
 type CreateDagRunResult struct {
@@ -300,4 +304,115 @@ func (c *client) StreamPodLogs(ctx context.Context, podUID string, logChan chan<
 	}()
 
 	return nil
+}
+
+// Add helper function to extract Content-Range total size
+func parseContentRangeSize(contentRange string) (int64, error) {
+	parts := strings.Split(contentRange, "/")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid Content-Range format")
+	}
+	return strconv.ParseInt(parts[1], 10, 64)
+}
+
+func (c *client) GetRawLogs(ctx context.Context, runId int, podName string, byteRange *string) (io.ReadCloser, int64, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/logs/run/%d/pod/%s", c.url, runId, podName), nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+
+	if byteRange != nil {
+		req.Header.Set("Range", fmt.Sprintf("bytes=%s", *byteRange))
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("executing request: %w", err)
+	}
+
+	// Handle various response status codes
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusPartialContent:
+		var totalSize int64
+		if cr := resp.Header.Get("Content-Range"); cr != "" {
+			totalSize, err = parseContentRangeSize(cr)
+			if err != nil {
+				resp.Body.Close()
+				return nil, 0, fmt.Errorf("parsing content range: %w", err)
+			}
+		} else {
+			totalSize = resp.ContentLength
+		}
+		return resp.Body, totalSize, nil
+	case http.StatusNoContent:
+		resp.Body.Close()
+		return nil, 0, nil
+	default:
+		resp.Body.Close()
+		return nil, 0, &HTTPError{
+			StatusCode: resp.StatusCode,
+			URL:        req.URL.String(),
+			Message:    "unexpected status code",
+		}
+	}
+}
+
+func (c *client) StreamRawLogs(ctx context.Context, runId int, podName string) (<-chan string, <-chan error) {
+	logChan := make(chan string)
+	errChan := make(chan error, 1) // Buffered to prevent goroutine leak
+
+	go func() {
+		defer close(logChan)
+		defer close(errChan)
+
+		var offset int64
+		buffer := make([]byte, 32*1024) // 32KB buffer for reading
+
+		for {
+			select {
+			case <-ctx.Done():
+				errChan <- ctx.Err()
+				return
+			default:
+				// Create range request for next chunk
+				byteRange := fmt.Sprintf("%d-", offset)
+				reader, size, err := c.GetRawLogs(ctx, runId, podName, &byteRange)
+				if err != nil {
+					errChan <- fmt.Errorf("getting logs: %w", err)
+					return
+				}
+
+				// No content available yet
+				if reader == nil {
+					time.Sleep(time.Second) // Wait before retry
+					continue
+				}
+
+				// Read and send chunks through channel
+				for {
+					n, err := reader.Read(buffer)
+					if n > 0 {
+						offset += int64(n)
+						logChan <- string(buffer[:n])
+					}
+
+					if err == io.EOF {
+						reader.Close()
+						if offset >= size {
+							return // We've read everything
+						}
+						break // Get next chunk
+					}
+
+					if err != nil {
+						reader.Close()
+						errChan <- fmt.Errorf("reading logs: %w", err)
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	return logChan, errChan
 }
