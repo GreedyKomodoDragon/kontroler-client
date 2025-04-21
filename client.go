@@ -37,6 +37,7 @@ type Client interface {
 	StreamPodLogs(ctx context.Context, podUID string, logChan chan<- string, errChan chan<- error) error
 	GetRawLogs(ctx context.Context, runId int, podName string, byteRange *string) (io.ReadCloser, int64, error)
 	StreamRawLogs(ctx context.Context, runId int, podName string) (<-chan string, <-chan error)
+	DeleteDag(ctx context.Context, namespace, name string) error
 }
 
 type CreateDagRunResult struct {
@@ -415,4 +416,18 @@ func (c *client) StreamRawLogs(ctx context.Context, runId int, podName string) (
 	}()
 
 	return logChan, errChan
+}
+
+func (c *client) DeleteDag(ctx context.Context, namespace, name string) error {
+	req, err := http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/api/v1/dag/%s/%s", c.url, namespace, name), nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("executing request: %w", err)
+	}
+
+	return handleResponse(resp, nil)
 }
