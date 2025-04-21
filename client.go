@@ -419,7 +419,7 @@ func (c *client) StreamRawLogs(ctx context.Context, runId int, podName string) (
 }
 
 func (c *client) DeleteDag(ctx context.Context, namespace, name string) error {
-	req, err := http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/api/v1/dag/%s/%s", c.url, namespace, name), nil)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("%s/api/v1/dag/dag/%s/%s", c.url, namespace, name), nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
